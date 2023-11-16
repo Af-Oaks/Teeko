@@ -18,6 +18,7 @@ Teeko::Teeko(QWidget *parent)
     QObject::connect(ui->actionQuit, SIGNAL(triggered(bool)), qApp, SLOT(quit()));
     QObject::connect(ui->actionAbout, SIGNAL(triggered(bool)), this, SLOT(showAbout()));
     numBlue=0;numRed=0;selected=0,lastMove=-1;
+
     QSignalMapper* map = new QSignalMapper(this);
     for (int row = 0; row < 5; ++row) {
         for (int col = 0; col < 5; ++col) {
@@ -26,7 +27,6 @@ Teeko::Teeko(QWidget *parent)
             Q_ASSERT(hole != nullptr);
 
             m_board[row][col] = hole;
-
             int id = row * 5 + col;
             map->setMapping(hole, id);
             QObject::connect(hole, SIGNAL(clicked(bool)), map, SLOT(map()));
@@ -40,6 +40,7 @@ Teeko::Teeko(QWidget *parent)
 
     // When the turn ends, switch the player.
     QObject::connect(this, SIGNAL(turnEnded()), this, SLOT(switchPlayer()));
+
 
     this->reset();
 
@@ -59,7 +60,7 @@ void Teeko::setPhase(Teeko::Phase phase) {
 }
 
 void Teeko::play(int id) {//funcionamento se da entorno dessa função
-    Hole* hole = m_board[id / 5][id % 5];
+    Hole* hole = m_board[id/5][id%5];
     if(numBlue <4 || numRed <4){
         if (hole->isEmpty()) {
             hole->setPlayer(m_player);
@@ -69,20 +70,39 @@ void Teeko::play(int id) {//funcionamento se da entorno dessa função
             else{
                 numBlue++;
             }
+            if(numBlue ==4 && numRed ==4){
+                this->setPhase(Teeko::MovePhase);
+            }
             CheckWinCondition(m_player->type());
             emit turnEnded();
         }
+
     }
     else{
-        m_phase = Teeko::MovePhase;
         //apos todos os jogadores botarem as 4 peças verifico se o hole selecionado é valido para o respectivo jogador
         if(hole->isUsed() && hole->player()->type() == m_player->type() && !selected){
             //deixar botao selecionado highlighted
             lastMove = id;selected = 1;
             hole->setState(hole->Selected);
             //mostrar as possibilidades em highlighted
-            checkPossibility(id);
+                int playRow =id/5; int playCol = id%5;
+                int cheRow=0; int cheCol=0;
+                for(int x=0;x<25;++x){
+                    cheRow = x/5; cheCol = x%5;
+                    hole =  m_board[cheRow][cheCol];
+                    printf("x=%d pl =%d| lin=%d - pl =%d | col=%d -pc=%d |vaz=%d | state =%d ",x,id,cheRow,playRow,cheCol,playCol,hole->isEmpty(),hole->state());
+                    if(hole->isEmpty() || hole->isPlayable()){
+                        //printf(" vazio x=%d ",x);
+                        if( abs(playRow-cheRow) <=1 && abs(playCol - cheCol) <=1  && x != id){
+                            hole->setPlayer(nullptr);
+                            hole->setState(hole->Playable);
+                            printf(" jogada possivel! ");
+                        }
+                    }
+                    printf("\n");
+                }
             //n trocar de turno
+
         }
         else if(lastMove == id && selected){
             //retirar highligthed do botao e das possiveis possibilidades
@@ -92,31 +112,21 @@ void Teeko::play(int id) {//funcionamento se da entorno dessa função
                 decheckPossibility();
             //n trocar de turno
         }
-        else if(hole->isEmpty() && lastMove !=-1 && selected){
-            int diflin = lastMove/5 - id/5;
-            int difcol = lastMove%5 - id%5;
-            //checo se o movimento feito está detro das possibilidades
-            if(abs(diflin) <=1 && abs(difcol) <=1){
+        else if(hole->state() == hole->Playable && selected){
 
-                Hole* lastHole = m_board[lastMove/ 5][lastMove%5];
+                Hole* lastHole = m_board[lastMove/5][lastMove%5];
                 decheckPossibility();
                 lastHole->reset();
                 hole->setPlayer(m_player);
                 CheckWinCondition(m_player->type());
 
                 //encerro a jogada e passo
-                lastMove =-1;
                 selected =0;
+                lastMove =-1;
                 emit turnEnded();
             }
-            else{
-                //do nothing??
-                //printf("to no ultimo\n");
-            }
-
-        }
-        else{
-            //printf("entrei em lugar nehum \n");
+       else{
+            printf("entrei em lugar nehum \n");
         }
 
     }
@@ -124,32 +134,14 @@ void Teeko::play(int id) {//funcionamento se da entorno dessa função
 }
 
 void Teeko::decheckPossibility(){
-    Hole* hole;
-    for(int x=0;x<25;x++){
-        hole =  m_board[x/5][x%5];
-        if( hole->isEmpty() ){
-            hole->reset();
+    Hole* hole3;
+    for(int x=0;x<25;++x){
+        hole3 =  m_board[x/5][x%5];
+        if( hole3->isPlayable() || hole3->isEmpty() ){
+            hole3->reset();
         }
     }
 
-}
-
-void Teeko::checkPossibility(int play){
-    int play_col =play/5,play_row = play%5;
-    int che_col,che_row;
-
-    for(int x=0;x<25;x++){
-        che_col = x/5; che_row = x%5;
-        Hole* hole2 =  m_board[che_col/5][che_row%5];
-        printf("x=%d | lin=%d | col=%d |vaz=%d\n",x,che_col,che_row,hole2->isEmpty());
-        if(hole2->isEmpty()){
-            //printf(" vazio x=%d ",x);
-            if( abs(play_col-che_col) <=1 && abs(play_row - che_row) <=1 ){
-                hole2->setState(hole2->Playable);
-                //printf("play =%d || lin =%d || col =%d || diflin=%d ||difCol =%d\n",play,che_col,che_row,abs(play_col-che_col),abs(play_row - che_row));
-            }
-        }
-    }
 }
 
 void Teeko::switchPlayer() {
@@ -162,8 +154,8 @@ void Teeko::switchPlayer() {
 
 void Teeko::reset() {
     // Reset board.
-    for (int row = 0; row < 5; row++) {
-        for (int col = 0; col < 5; col++) {
+    for (int row = 0; row < 5; ++row) {
+        for (int col = 0; col < 5; ++col) {
             Hole* hole = m_board[row][col];
             hole->reset();
         }
