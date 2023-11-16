@@ -30,20 +30,24 @@ public:
 signals:
     void phaseChanged(Teeko::Phase phase);
     void turnEnded();
+    void updateBoard();
 
 private:
     Ui::Teeko *ui;
     Player* m_player;
     Phase m_phase;
     Hole* m_board[5][5];
+    int numBlue,numRed,selected,lastMove;
 
 private slots:
     void setPhase(Teeko::Phase phase);
-
     void play(int id);
     void switchPlayer();
     void reset();
-
+    void CheckWinCondition(int player);
+    void vitoriaPlayer(int player);
+    void checkPossibility(int id);
+    void decheckPossibility();
     void showAbout();
     void updateStatusBar();
 
